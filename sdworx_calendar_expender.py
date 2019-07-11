@@ -182,15 +182,26 @@ def get_owner(value):
 	value = re.sub(r'^[AP]M ', '', value)
 	return value.lower()
 
+def get_category(value):
+	cat = "off"
+	cats = re.findall(r'\(([a-z ]+)\)', value.lower())
+	if cats:
+		cat = cats[0]
+		if len(cats) > 1:
+			print("ERROR: found more than one cat: ", cats)
+	return re.sub(r'\s+', '', cat.title())
+
 def print_all(owners):
-	for owner, dates in sorted(owners.items()):
-		n = 0
-		for date, events in sorted(dates.items()):
-			for event in events:
-				n += 1
-				for key, value in event.items():
-					print_line(key + ":" + value)
-		print(owner + ": " + str(n) + " events")
+	for owner, types in sorted(owners.items()):
+		totals = {}
+		for cat, dates in sorted(types.items()):
+			totals[cat] = 0
+			for date, events in sorted(dates.items()):
+				for event in events:
+					totals[cat] += 1
+					for key, value in event.items():
+						print_line(key + ":" + value)
+		print(owner, ": total:", sum(totals.values()), ", events: ", totals)
 
 owners = {}
 event = None
@@ -218,12 +229,16 @@ with io.open(cal_in, 'r') as fp_in:
 			if value == "VEVENT":
 				owner = get_owner(event[SUMMARY])
 				date = get_date(event)
+				cat = get_category(event[SUMMARY])
 				if not owner in owners:
 					owners[owner] = {}
+				# filter per category to support mix of events
+				if not cat in owners[owner]:
+					owners[owner][cat] = {}
 				# we can have multiple events for the same owner the same day
-				if not date in owners[owner]:
-					owners[owner][date] = []
-				owners[owner][date].append(event)
+				if not date in owners[owner][cat]:
+					owners[owner][cat][date] = []
+				owners[owner][cat][date].append(event)
 				event = None
 			else:
 				print("Error: " + line)
