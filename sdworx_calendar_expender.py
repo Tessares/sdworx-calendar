@@ -114,13 +114,13 @@ def is_next_date(prev_event, new_event):
 	return False
 
 def get_time(event):
-	times = re.findall(r'\([0-9]+h\)', event[DESC])
+	times = re.findall(r'\(([0-9]+)h\)', event[DESC])
 	if times:
-		return max(1, int(re.findall(r'[0-9]+', times[0])[0]))
+		return max(1, int(times[0]))
 
-	days = re.findall(r'\([0-9]+d\)', event[DESC])
+	days = re.findall(r'\(([0-9]+)d\)', event[DESC])
 	if days:
-		return int(re.findall(r'[0-9]+', days[0])[0]) * 8
+		return int(days[0]) * 8
 
 	# sometimes, there is no time: full/half day
 	if re.search(r'^[AP]M ', event[SUMMARY]):
