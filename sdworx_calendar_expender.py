@@ -69,6 +69,11 @@ def print_dict(event):
 	if EXTRA in event:
 		event[DESC] += ": " + str(event[EXTRA])
 		event.pop(EXTRA)
+
+	# always add an end date, needed for some calendars
+	if not DATE_END in event:
+		event[DATE_END] = event[DATE_START]
+
 	for key, value in event.items():
 		if key == DESC or key == SUMMARY:
 			value = beautify(value)
