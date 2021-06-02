@@ -55,6 +55,9 @@ def date_to_str(date):
 def date_next_day_str(value):
 	return date_to_str(str_to_date(value) + datetime.timedelta(days=1))
 
+def date_prev_day_str(value):
+	return date_to_str(str_to_date(value) - datetime.timedelta(days=1))
+
 def get_weekday(value):
 	return str_to_date(value).weekday()
 
@@ -65,24 +68,28 @@ def is_start_week(value):
 def is_end_week(value):
 	return get_weekday(value) >= FRIDAY
 
+def clean_event(event):
+	# always add an end date, needed for some calendars
+	if not DATE_END in event:
+		# it seems we need to give date end +1
+		event[DATE_END] = date_next_day_str(event[DATE_START])
+		# END:VEVENT needs to be at the end
+		event.move_to_end(END)
+
+def print_key_val(key, val):
+	print_line(key + ":" + val)
+
 def print_dict(event):
+	# merge extra
 	if EXTRA in event:
 		event[DESC] += ": " + str(event[EXTRA])
 		event.pop(EXTRA)
 
-	# always add an end date, needed for some calendars
-	if not DATE_END in event:
-		event[DATE_END] = event[DATE_START]
-		# END:VEVENT needs to be at the end
-		event.move_to_end(END)
-
 	for key, value in event.items():
 		if key == DESC or key == SUMMARY:
 			value = beautify(value)
-		# it seems we need to give date end +1
-		if key == DATE_END:
-			value = date_next_day_str(value)
-		print_line(key + ":" + value)
+
+		print_key_val(key, value)
 
 	if key != END:
 		print("Error: END is not at the end", event)
@@ -98,11 +105,17 @@ def get_date(event):
 
 def get_last_date_str(event):
 	if DATE_END in event:
-		return event[DATE_END]
+		# with whole day events, end date is "midnight the day after"
+		return date_prev_day_str(event[DATE_END])
+
+	print("ERROR: event has no end date", event)
 	return get_date_str(event)
 
 def get_last_date(event):
 	return int(get_last_date_str(event))
+
+def get_last_date_after_date(event):
+	return str_to_date(date_next_day_str(get_last_date_str(event)))
 
 def is_same_date(prev_event, new_event):
 	return get_last_date_str(prev_event) == get_date_str(new_event)
@@ -154,9 +167,8 @@ def replaced_time_str(prev_event, new_event):
 	return new_time
 
 def replace_day_str(prev_event, new_event):
-	delta = get_date_date(new_event) - get_date_date(prev_event)
-	days = delta.days + 1
-	days_str = ' (' + str(days) + 'd)'
+	delta = get_last_date_after_date(new_event) - get_date_date(prev_event)
+	days_str = ' (' + str(delta.days) + 'd)'
 	search_dh = r' \([0-9]+[hd]\)'
 	if re.search(search_dh, prev_event[SUMMARY]):
 		prev_event[SUMMARY] = re.sub(search_dh, days_str, prev_event[SUMMARY])
@@ -169,7 +181,7 @@ def add_time(prev_event, new_event):
 	add_extra(prev_event, "add time", new_event[DESC], str(hours) + "h")
 
 def merge_event(prev_event, new_event):
-	prev_event[DATE_END] = get_date_str(new_event)
+	prev_event[DATE_END] = new_event[DATE_END]
 	date = replace_day_str(prev_event, new_event)
 	add_extra(prev_event, "add date", new_event[DESC], date)
 
@@ -217,6 +229,7 @@ owners = {}
 event = None
 fp_out = io.open(cal_tmp, 'w')
 
+# first tmp version with ordered events so we can merge them after
 with io.open(cal_in, 'r') as fp_in:
 	for line in fp_in:
 		line = line.rstrip()
@@ -241,6 +254,8 @@ with io.open(cal_in, 'r') as fp_in:
 
 		if key == END:
 			if value == "VEVENT":
+				clean_event(event)
+
 				owner = get_owner(event[SUMMARY])
 				date = get_date(event)
 				cat = get_category(event[SUMMARY])
@@ -264,6 +279,7 @@ new_event = None
 prev_event = None
 fp_out = io.open(cal_out, 'w', encoding='utf-8')
 
+# merge events if possible
 with io.open(cal_tmp, 'r') as fp_in:
 	for line in fp_in:
 		line = line.rstrip()
