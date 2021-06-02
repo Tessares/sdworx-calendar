@@ -71,7 +71,7 @@ def is_end_week(value):
 def clean_event(event):
 	# always add an end date, needed for some calendars
 	if not DATE_END in event:
-		# it seems we need to give date end +1
+		# we cover a whole day, we need to give start date +1
 		event[DATE_END] = date_next_day_str(event[DATE_START])
 		# END:VEVENT needs to be at the end
 		event.move_to_end(END)
@@ -225,6 +225,9 @@ def print_all(owners):
 						print_line(key + ":" + value)
 		print(owner, ": total:", sum(totals.values()), ", events: ", totals)
 
+def date_remove_time(date):
+	return date[:8]
+
 owners = {}
 event = None
 fp_out = io.open(cal_tmp, 'w')
@@ -249,6 +252,15 @@ with io.open(cal_in, 'r') as fp_in:
 					print_all(owners)
 				print_line(line)
 				continue
+
+		# restrict to %Y%m%d format: whole day events
+		if (key == DATE_START or key == DATE_END) and 'T' in value:
+			value = date_remove_time(value)
+
+			# if we had a time, it was during the day: we want to
+			# have whole day events so we need to take the next one
+			if key == DATE_END:
+				value = date_next_day_str(value)
 
 		event[key] = value
 
