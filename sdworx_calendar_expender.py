@@ -221,7 +221,11 @@ with io.open(cal_in, 'r') as fp_in:
 	for line in fp_in:
 		line = line.rstrip()
 		key, value = line.split(":", 1)
-		
+
+		# skip entries with missing value: strange
+		if not value:
+			continue
+
 		# find the first event
 		if not event:
 			if line == "BEGIN:VEVENT":
