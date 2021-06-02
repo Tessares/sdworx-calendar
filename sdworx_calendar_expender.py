@@ -73,6 +73,8 @@ def print_dict(event):
 	# always add an end date, needed for some calendars
 	if not DATE_END in event:
 		event[DATE_END] = event[DATE_START]
+		# END:VEVENT needs to be at the end
+		event.move_to_end(END)
 
 	for key, value in event.items():
 		if key == DESC or key == SUMMARY:
@@ -81,6 +83,9 @@ def print_dict(event):
 		if key == DATE_END:
 			value = date_next_day_str(value)
 		print_line(key + ":" + value)
+
+	if key != END:
+		print("Error: END is not at the end", event)
 
 def get_date_str(event):
 	return event[DATE_START]
