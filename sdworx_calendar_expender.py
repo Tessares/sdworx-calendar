@@ -320,7 +320,8 @@ with io.open(cal_tmp, 'r') as fp_in:
 					if is_same_date(prev_event, new_event):
 						add_time(prev_event, new_event)
 					elif is_full_day(prev_event) and \
-					     is_next_date(prev_event, new_event):
+					     is_next_date(prev_event, new_event) and \
+					     is_full_day(new_event):
 						merge_event(prev_event, new_event)
 					else:
 						prev_event = create_event(prev_event, new_event)
