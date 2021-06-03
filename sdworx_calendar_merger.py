@@ -25,7 +25,7 @@ import pytz
 
 cal_in = sys.argv[1]
 cal_tmp = cal_in + ".tmp"
-cal_out = cal_in + ".expended.ics"
+cal_out = cal_in + ".merged.ics"
 
 DATE_START = "DTSTART"
 DATE_END = "DTEND"
