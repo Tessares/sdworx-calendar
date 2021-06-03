@@ -21,6 +21,7 @@ import re
 import io
 from collections import OrderedDict
 import datetime
+import pytz
 
 cal_in = sys.argv[1]
 cal_tmp = cal_in + ".tmp"
@@ -28,13 +29,18 @@ cal_out = cal_in + ".expended.ics"
 
 DATE_START = "DTSTART"
 DATE_END = "DTEND"
+ORIG_DATE_START = "ORIG" + DATE_START
+ORIG_DATE_END = "ORIG" + DATE_END
 DATE_FORMAT = "%Y%m%d"
+DATE_FORMAT_FULL = "%Y%m%dT%H%M%SZ" # 20210720T140000Z
 DESC = "DESCRIPTION"
 SUMMARY = "SUMMARY"
 EXTRA = "__EXTRA__"
 END = "END"
 MONDAY = 0
 FRIDAY = 4
+
+BRUSSELS = pytz.timezone('Europe/Brussels')
 
 def print_line(line):
 	print(line, file=fp_out, end="\n")
@@ -44,6 +50,12 @@ def beautify(value):
 	title = re.sub(r'^Am ', "AM ", title)
 	title = re.sub(r'^Pm ', "PM ", title)
 	return title
+
+def str_to_date_full(value):
+	date_parsed = datetime.datetime.strptime(value, DATE_FORMAT_FULL)
+	date_utc = date_parsed.replace(tzinfo=datetime.timezone.utc)
+	date_to_cet = date_utc.astimezone(BRUSSELS)
+	return date_to_cet
 
 def str_to_date(value):
 	return datetime.datetime.strptime(value, DATE_FORMAT)
@@ -68,13 +80,57 @@ def is_start_week(value):
 def is_end_week(value):
 	return get_weekday(value) >= FRIDAY
 
+def replaced_time_key(event, hours, key):
+	event[key] = re.sub(r'\([0-9]+h\)', '(' + str(hours) + 'h)', event[key])
+
+def replace_day_key(event, days, key):
+	days_str = ' (' + str(days) + 'd)'
+	search_dh = r' \([0-9]+[hd]\)'
+	if re.search(search_dh, event[key]):
+		event[key] = re.sub(search_dh, days_str, event[key])
+	else:
+		event[key] += days_str
+
 def clean_event(event):
-	# always add an end date, needed for some calendars
+	# always add an end date, needed for us later (and for some calendars)
 	if not DATE_END in event:
 		# we cover a whole day, we need to give start date +1
 		event[DATE_END] = date_next_day_str(event[DATE_START])
 		# END:VEVENT needs to be at the end
 		event.move_to_end(END)
+
+	exact_start = None
+	if ORIG_DATE_START in event:
+		exact_start = str_to_date_full(event[ORIG_DATE_START])
+		event.pop(ORIG_DATE_START)
+
+	exact_end = None
+	if ORIG_DATE_END in event:
+		exact_end = str_to_date_full(event[ORIG_DATE_END])
+		event.pop(ORIG_DATE_END)
+
+	if exact_start and exact_end:
+		delta = exact_end - exact_start
+		days = delta.days
+		# ideally round() but sdworx is doing int()
+		hours = int(delta.seconds / 3600)
+
+		# 7h or more == 1 day of work
+		if hours >= 7:
+			days += 1
+			if hours > 9: # handle timezone difference: +1 hour
+				print("ERROR: more than 9 hours", days, hours, event)
+
+		if days > 0:
+			replace_day_key(event, days, SUMMARY)
+			replace_day_key(event, days, DESC)
+		else:
+			if hours <= 4:
+				half = 'AM' if exact_start.hour < 12 else 'PM'
+				event[SUMMARY] = half + ' ' + event[SUMMARY]
+
+			replaced_time_key(event, hours, SUMMARY)
+			replaced_time_key(event, hours, DESC)
 
 def print_key_val(key, val):
 	print_line(key + ":" + val)
@@ -163,17 +219,12 @@ def add_extra(event, desc, extra, nb):
 def replaced_time_str(prev_event, new_event):
 	new_time = get_time(new_event)
 	hours = get_time(prev_event) + new_time
-	prev_event[SUMMARY] = re.sub(r'\([0-9]+h\)', '(' + str(hours) + 'h)', prev_event[SUMMARY])
+	replaced_time_key(prev_event, hours, SUMMARY)
 	return new_time
 
 def replace_day_str(prev_event, new_event):
 	delta = get_last_date_after_date(new_event) - get_date_date(prev_event)
-	days_str = ' (' + str(delta.days) + 'd)'
-	search_dh = r' \([0-9]+[hd]\)'
-	if re.search(search_dh, prev_event[SUMMARY]):
-		prev_event[SUMMARY] = re.sub(search_dh, days_str, prev_event[SUMMARY])
-	else:
-		prev_event[SUMMARY] += days_str
+	replace_day_key(prev_event, delta.days, SUMMARY)
 	return get_date_str(new_event)
 
 def add_time(prev_event, new_event):
@@ -186,8 +237,8 @@ def merge_event(prev_event, new_event):
 	add_extra(prev_event, "add date", new_event[DESC], date)
 
 def get_desc(event):
-	# without the time
-	return re.sub(r' \([0-9]+h\)', '', event[DESC])
+	# without the time and lower
+	return re.sub(r' \([0-9]+[dh]\)', '', event[DESC]).lower()
 
 def is_same_desc(prev_event, new_event):
 	return get_desc(prev_event) == get_desc(new_event)
@@ -255,6 +306,7 @@ with io.open(cal_in, 'r') as fp_in:
 
 		# restrict to %Y%m%d format: whole day events
 		if (key == DATE_START or key == DATE_END) and 'T' in value:
+			event["ORIG" + key] = value
 			value = date_remove_time(value)
 
 			# if we had a time, it was during the day: we want to
