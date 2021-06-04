@@ -91,6 +91,18 @@ def replace_day_key(event, days, key):
 	else:
 		event[key] += days_str
 
+def get_num_parenthesis(value, key):
+	num = re.findall(r'\(([0-9]+)' + key + '\)', value)
+	if num:
+		return max(1, int(num[0])) # not to ignore < 1h events
+	return 0
+
+def get_hours(value):
+	return get_num_parenthesis(value, 'h')
+
+def get_days(value):
+	return get_num_parenthesis(value, 'd')
+
 def clean_event(event):
 	# always add an end date, needed for us later (and for some calendars)
 	if not DATE_END in event:
@@ -131,6 +143,9 @@ def clean_event(event):
 
 			replaced_time_key(event, hours, SUMMARY)
 			replaced_time_key(event, hours, DESC)
+
+	if get_hours(event[SUMMARY]) >= 7:
+		replace_day_key(event, 1, SUMMARY)
 
 def print_key_val(key, val):
 	print_line(key + ":" + val)
@@ -193,13 +208,13 @@ def is_next_date(prev_event, new_event):
 	return False
 
 def get_time(event):
-	times = re.findall(r'\(([0-9]+)h\)', event[SUMMARY])
-	if times:
-		return max(1, int(times[0]))
+	hours = get_hours(event[SUMMARY])
+	if hours:
+		return hours
 
-	days = re.findall(r'\(([0-9]+)d\)', event[SUMMARY])
+	days = get_days(event[SUMMARY])
 	if days:
-		return int(days[0]) * 8
+		return days * 8
 
 	# sometimes, there is no time: full/half day
 	if re.search(r'^[AP]M ', event[SUMMARY]):
