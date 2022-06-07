@@ -131,9 +131,19 @@ def clean_event(event):
 		if hours >= 7:
 			days += 1
 			if hours > 9: # handle timezone difference: +1 hour
-				print("ERROR: more than 9 hours", days, hours, event)
+				print("WARNING: more than 9 hours", days, hours, exact_start, exact_end, event)
+			else:
+				hours = 0
 
 		if days > 0:
+			# there is a bug in the Calendar we get: hours is written in
+			# the text but the event is taking more than a day
+			if hours > 0:
+				event[SUMMARY] += "?"
+				event[DESC] += " hours: " + str(hours)
+				print("WARNING: one day or more (" + str(days) + ") but for hourly event (" + str(hours) + ") " + str(exact_start) + " -> " + str(exact_end) + ": +1 day\n", event)
+				days += 1
+
 			replace_day_key(event, days, SUMMARY)
 			replace_day_key(event, days, DESC)
 		else:
@@ -144,7 +154,7 @@ def clean_event(event):
 			replaced_time_key(event, hours, SUMMARY)
 			replaced_time_key(event, hours, DESC)
 
-	if get_hours(event[SUMMARY]) >= 7:
+	elif get_hours(event[SUMMARY]) >= 7:
 		replace_day_key(event, 1, SUMMARY)
 
 def print_key_val(key, val):
@@ -266,7 +276,7 @@ def create_event(prev_event, new_event):
 def get_owner(value):
 	# grep SUMMARY Calendar.ics | cut -d: -f2 | sed -e "s/ (.\+)//g" -e "s/^[PA]M //g" | sort -u
 	# remove info in () and AM/PM
-	value = re.sub(r' \(.+\)', '', value)
+	value = re.sub(r' \(.+\)\?*', '', value)
 	value = re.sub(r'^[AP]M ', '', value)
 	return value.lower()
 
