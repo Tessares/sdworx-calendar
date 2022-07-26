@@ -282,7 +282,7 @@ def get_owner(value):
 
 def get_category(value):
 	cat = "off"
-	cats = re.findall(r'\(([a-z].+)\)', value.lower())
+	cats = re.findall(r'\(([a-z][^\)]+)\)', value.lower())
 	if cats:
 		cat = cats[0]
 		if len(cats) > 1:
