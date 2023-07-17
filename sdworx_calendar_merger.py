@@ -265,7 +265,7 @@ def merge_event(prev_event, new_event):
 
 def get_desc(event):
 	# without the time and lower
-	return re.sub(r' \([0-9]+[dh]\)', '', event[DESC]).lower()
+	return re.sub(r' \([0-9]+[dhDH]\)', '', event[DESC]).lower()
 
 def is_same_desc(prev_event, new_event):
 	return get_desc(prev_event) == get_desc(new_event)
@@ -309,7 +309,7 @@ def add_bank_holidays(owners):
 					event["UID"] = date + "_" + owner.replace(" ", "-") + "@SDWORX.COM"
 					event["DTSTART"] = date
 					event["DTEND"] = date_next_day_str(date)
-					event["SUMMARY"] = owner.title() + " (" + OFF_CAT + ")"
+					event["SUMMARY"] = owner.title() + " (" + OFF_CAT + ") (1D)"
 					event["DESCRIPTION"] = event["SUMMARY"]
 					event["STATUS"] = "CONFIRMED"
 					event["X-MICROSOFT-CDO-BUSYSTATUS"] = "BUSY"
