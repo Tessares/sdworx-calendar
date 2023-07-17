@@ -36,9 +36,11 @@ DATE_FORMAT_FULL = "%Y%m%dT%H%M%SZ" # 20210720T140000Z
 DESC = "DESCRIPTION"
 SUMMARY = "SUMMARY"
 EXTRA = "__EXTRA__"
+OFF_CAT = "Absent"
 END = "END"
 MONDAY = 0
 FRIDAY = 4
+BANK_HOLIDAYS = ["0101", "0501", "0721", "0815", "1101", "1111", "1225"]
 
 BRUSSELS = pytz.timezone('Europe/Brussels')
 
@@ -289,7 +291,38 @@ def get_category(value):
 			print("ERROR: found more than one cat: ", cats)
 	return cat.title()
 
+def add_bank_holidays(owners):
+	cyear = datetime.datetime.now().year
+	years = [cyear - 1, cyear, cyear + 1]
+
+	for owner in owners.keys():
+		for year in years:
+			for holiday in BANK_HOLIDAYS:
+				date = str(year) + holiday
+				date_int = int(date)
+
+				if not date_int in owners[owner][OFF_CAT]:
+					owners[owner][OFF_CAT][date_int] = []
+
+					event = OrderedDict()
+					event["BEGIN"] = "VEVENT"
+					event["UID"] = date + "_" + owner.replace(" ", "-") + "@SDWORX.COM"
+					event["DTSTART"] = date
+					event["DTEND"] = date_next_day_str(date)
+					event["SUMMARY"] = owner.title() + " (" + OFF_CAT + ")"
+					event["DESCRIPTION"] = event["SUMMARY"]
+					event["STATUS"] = "CONFIRMED"
+					event["X-MICROSOFT-CDO-BUSYSTATUS"] = "BUSY"
+					event["X-MICROSOFT-CDO-ALLDAYEVENT"] = "TRUE"
+					event["X-FUNAMBOL-ALLDAY"] = "TRUE"
+					event["END"] = "VEVENT"
+
+					owners[owner][OFF_CAT][date_int].append(event)
+
 def print_all(owners):
+	# because they are not included
+	add_bank_holidays(owners)
+
 	for owner, types in sorted(owners.items()):
 		totals = {}
 		for cat, dates in sorted(types.items()):
