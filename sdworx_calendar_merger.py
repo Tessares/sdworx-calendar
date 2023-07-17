@@ -314,6 +314,9 @@ with io.open(cal_in, 'r') as fp_in:
 		line = line.rstrip()
 		key, value = line.split(":", 1)
 
+		# strip spaces in keys, should not be there but well they are...
+		key = key.replace(" ", "")
+
 		# skip entries with missing value: strange
 		if not value:
 			continue
