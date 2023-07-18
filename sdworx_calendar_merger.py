@@ -87,7 +87,7 @@ def replaced_time_key(event, hours, key):
 
 def replace_day_key(event, days, key):
 	days_str = ' (' + str(days) + 'd)'
-	search_dh = r' \([0-9]+[hd]\)'
+	search_dh = r' \([0-9]+[dhDH]\)'
 	if re.search(search_dh, event[key]):
 		event[key] = re.sub(search_dh, days_str, event[key])
 	else:
