@@ -37,6 +37,7 @@ DESC = "DESCRIPTION"
 SUMMARY = "SUMMARY"
 EXTRA = "__EXTRA__"
 OFF_CAT = "Absent"
+HO_CAT = "Travaille À Domicile"
 END = "END"
 MONDAY = 0
 FRIDAY = 4
@@ -330,6 +331,9 @@ def print_all(owners):
 			for date, events in sorted(dates.items()):
 				for event in events:
 					totals[cat] += 1
+					# filter our home office
+					if cat == HO_CAT:
+						continue
 					for key, value in event.items():
 						print_line(key + ":" + value)
 		print(owner, ": total:", sum(totals.values()), ", events: ", totals)
