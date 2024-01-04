@@ -260,9 +260,15 @@ def add_time(prev_event, new_event):
 	add_extra(prev_event, "add time", new_event[DESC], str(hours) + "h")
 
 def merge_event(prev_event, new_event):
-	prev_event[DATE_END] = new_event[DATE_END]
-	date = replace_day_str(prev_event, new_event)
-	add_extra(prev_event, "add date", new_event[DESC], date)
+	# Append new event to the previous one if t ends later
+	if prev_event[DATE_END] < new_event[DATE_END]:
+		prev_event[DATE_END] = new_event[DATE_END]
+		date = replace_day_str(prev_event, new_event)
+		add_extra(prev_event, "add date", new_event[DESC], date)
+	# Merge new event in the previous one if it ends earlier (.e.g. an public holiday)
+	else:
+		date = replace_day_str(new_event, prev_event)
+		add_extra(prev_event, "including date", new_event[DESC], date)
 
 def get_desc(event):
 	# without the time and lower
